@@ -5,3 +5,5 @@ py -m PyInstaller ^
   --hidden-import=pandas ^
   --hidden-import=openpyxl ^
   main.py
+
+git remote add origin https://github.com/MaksymMuntyan/tal-cleaner.git

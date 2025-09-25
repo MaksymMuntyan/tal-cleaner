@@ -10,7 +10,9 @@ SUFFIXES_TO_REMOVE = [
     'LLC', 'Ltd', 'LLP', 'LP', 'PC', 'PLC', 'GmbH', 'AG', 'SARL', 'SA',
     'AB', 'BV', 'SpA', 'Srl', 'SL', 'SA de CV', 'Platforms', 'Stores',
     'Motors', 'Wholesale', 'Coffee', 'International', 'Service', 'Association',
-    'Business'
+    'Business', 'Machines', 'Limited'
+    # New additions from your request
+    'Mbh', 'Ggmbh', 'Kg', 'UK'
 ]
 
 # A dictionary for special capitalization cases that .title() gets wrong.
@@ -39,14 +41,15 @@ def clean_company_name(name):
         name = the_company_match.group(1).strip()
 
     # Pass 3: Iteratively remove known suffixes from the end of the string.
-    # This is a more direct and reliable method than a single complex regex.
-    # We loop multiple times to handle cases like "Company, Inc."
-    for _ in range(2): # Allow for up to 2 suffix removals
-        # Create the regex pattern dynamically inside the loop for the current name
+    for _ in range(2): 
         suffix_pattern = r'[\s,&\-]+\b(?:' + r'|'.join(re.escape(s) for s in SUFFIXES_TO_REMOVE) + r')\b\.?$'
         name = re.sub(suffix_pattern, '', name, flags=re.IGNORECASE).strip()
 
-    # Pass 4: Final capitalization and special case fixes.
+    # **NEW:** Pass 4: Remove any standalone 2-letter uppercase country codes from the end.
+    # Example: "Some Company US" -> "Some Company"
+    name = re.sub(r'\s+\b[A-Z]{2}$', '', name)
+
+    # Pass 5: Final capitalization and special case fixes.
     name = name.title()
     name = re.sub(r"([A-Za-z])['’]S\b", r"\1's", name)
 
