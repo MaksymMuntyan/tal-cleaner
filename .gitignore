@@ -1,0 +1,15 @@
+# Python build files
+dist/
+build/
+*.spec
+
+# Virtual Environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated output files
+*_clean.csv
+tal_info.xlsx

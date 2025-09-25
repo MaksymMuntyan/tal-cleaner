@@ -1,0 +1,7 @@
+py -m PyInstaller ^
+  --noconsole ^
+  --onefile ^
+  --icon=scroll.ico ^
+  --hidden-import=pandas ^
+  --hidden-import=openpyxl ^
+  main.py
