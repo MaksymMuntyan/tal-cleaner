@@ -24,14 +24,14 @@ def run_in_thread(func, *args):
 def single_clean():
     global last_mode
     last_mode = 'single'
-    select_file_or_folder(mode="single")
+    select_file_or_folder(mode="single", generate_report=report_var.get())
 
 def bulk_clean():
     global last_mode
     last_mode = 'bulk'
-    select_file_or_folder(mode="bulk")
+    select_file_or_folder(mode="bulk", generate_report=report_var.get())
 
-def select_file_or_folder(mode):
+def select_file_or_folder(mode, generate_report):
     """Prompt the user to select a file or folder, then start processing."""
     if mode == "single":
         path = filedialog.askopenfilename(
@@ -44,7 +44,7 @@ def select_file_or_folder(mode):
     if path:
         # Show progress bar
         show_progress_bar()
-        run_in_thread(process_file_wrapper, path, mode)
+        run_in_thread(process_file_wrapper, path, mode, generate_report)
 
 def show_progress_bar():
     """Add progress bar to the main window if it doesn't exist yet."""
@@ -62,13 +62,13 @@ def hide_progress_bar():
         root.progress.destroy()
         delattr(root, 'progress')
 
-def process_file_wrapper(path, mode):
+def process_file_wrapper(path, mode, generate_report):
     """Wrapper to process files/folders and update the UI when done."""
     try:
         if mode == "single":
-            processor.process_single_file(path)
+            processor.process_single_file(path, generate_report)
         else:
-            processor.process_folder(path)
+            processor.process_folder(path, generate_report)
         root.after(0, post_process_ui)
     except Exception as e:
         root.after(0, lambda: messagebox.showerror("Error", f"An error occurred:\n{e}"))
@@ -145,6 +145,19 @@ def build_main_ui():
     )
     instructions_label.pack(pady=(0, 20))
 
+    # **NEW:** Checkbox for generating the report
+    report_checkbox = tk.Checkbutton(
+        root,
+        text="Generate report on cleaned files",
+        variable=report_var,
+        onvalue=True,
+        offvalue=False,
+        font=FONT_INSTRUCTIONS,
+        bg=BG_COLOR,
+        activebackground=BG_COLOR
+    )
+    report_checkbox.pack(pady=(10, 5))
+
     # Single Clean Button
     btn_single = tk.Button(
         root, text="Single Clean", font=FONT_BTN, bg=BTN_COLOR, fg="white",
@@ -166,12 +179,17 @@ def build_main_ui():
     btn_bulk.bind("<Leave>", lambda e: btn_bulk.config(bg=BTN_COLOR))
 
 def main():
-    global root
+    global root, report_var
     root = tk.Tk()
     root.title("TAL Cleaner 🤖")
-    root.geometry("500x320")
+    root.geometry("500x380") # Increased height for the checkbox
     root.configure(bg=BG_COLOR)
     root.resizable(False, False)
+    
+    # **NEW:** Variable to hold the checkbox state
+    report_var = tk.BooleanVar(value=False) # Default is unchecked
+
+    # Center the window
     root.eval('tk::PlaceWindow . center')
 
     build_main_ui()

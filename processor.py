@@ -17,7 +17,7 @@ VALUES_TO_REMOVE = {
 tal_info_columns = ['file_name', 'type', 'original_rows', 'cleaned_rows']
 tal_info_df = pd.DataFrame(columns=tal_info_columns)
 
-def _process_dataframe(df, file_path, make_new_folder, sheet_name=None):
+def _process_dataframe(df, file_path, make_new_folder, generate_report, sheet_name=None):
     """A helper function to run the cleaning process on a single DataFrame."""
     global tal_info_df
 
@@ -51,13 +51,16 @@ def _process_dataframe(df, file_path, make_new_folder, sheet_name=None):
     
     save_clean_file(file_path, output_df, col_type, make_new_folder=make_new_folder, sheet_name=sheet_name)
     
-    cleaned_rows_count = len(output_df)
-    
-    report_filename = f"{os.path.basename(file_path)} ({sheet_name})" if sheet_name else os.path.basename(file_path)
-    tal_info_df = append_tal_info(tal_info_df, report_filename, col_type, original_row_count, cleaned_rows_count)
+    # **NEW:** Only append to the report if requested.
+    if generate_report:
+        cleaned_rows_count = len(output_df)
+        report_filename = f"{os.path.basename(file_path)} ({sheet_name})" if sheet_name else os.path.basename(file_path)
+        tal_info_df = append_tal_info(tal_info_df, report_filename, col_type, original_row_count, cleaned_rows_count)
 
-def process_single_file(file_path):
+def process_single_file(file_path, generate_report):
     """Process a single file, handling multiple Excel sheets if they exist."""
+    global tal_info_df
+    tal_info_df = pd.DataFrame(columns=tal_info_columns)
     header_row = 0
     
     if file_path.endswith(('.xls', '.xlsx')):
@@ -66,38 +69,33 @@ def process_single_file(file_path):
             for sheet_name in xls.sheet_names:
                 df = pd.read_excel(file_path, header=header_row, sheet_name=sheet_name)
                 current_sheet_name = sheet_name if len(xls.sheet_names) > 1 else None
-                _process_dataframe(df, file_path, make_new_folder=False, sheet_name=current_sheet_name)
+                _process_dataframe(df, file_path, False, generate_report, sheet_name=current_sheet_name)
         except Exception:
             xls = pd.ExcelFile(file_path)
             for sheet_name in xls.sheet_names:
                 df = pd.read_excel(file_path, header=None, sheet_name=sheet_name)
                 current_sheet_name = sheet_name if len(xls.sheet_names) > 1 else None
-                _process_dataframe(df, file_path, make_new_folder=False, sheet_name=current_sheet_name)
+                _process_dataframe(df, file_path, False, generate_report, sheet_name=current_sheet_name)
     else: # It's a CSV
         try:
             df = pd.read_csv(file_path, header=header_row, encoding='utf-8-sig')
-            _process_dataframe(df, file_path, make_new_folder=False)
+            _process_dataframe(df, file_path, False, generate_report)
         except Exception:
             df = pd.read_csv(file_path, header=None, encoding='utf-8-sig')
-            _process_dataframe(df, file_path, make_new_folder=False)
+            _process_dataframe(df, file_path, False, generate_report)
 
-    # **NEW:** Rename columns for the report
-    tal_info_df.rename(columns={
-        'file_name': 'File Name',
-        'type': 'Type',
-        'original_rows': 'Original Rows',
-        'cleaned_rows': 'Cleaned Rows'
-    }, inplace=True)
+    # **NEW:** Only save and format the report if requested.
+    if generate_report:
+        tal_info_df.rename(columns={
+            'file_name': 'File Name', 'type': 'Type',
+            'original_rows': 'Original Rows', 'cleaned_rows': 'Cleaned Rows'
+        }, inplace=True)
+        tal_info_path = os.path.join(os.path.dirname(file_path), 'tal_info.xlsx')
+        tal_info_df.to_excel(tal_info_path, index=False)
+        format_tal_info_sheet(tal_info_path)
+        print(f"TAL info saved to {tal_info_path}")
 
-    tal_info_path = os.path.join(os.path.dirname(file_path), 'tal_info.xlsx')
-    tal_info_df.to_excel(tal_info_path, index=False)
-    
-    # **NEW:** Apply the formatting
-    format_tal_info_sheet(tal_info_path)
-    
-    print(f"TAL info saved to {tal_info_path}")
-
-def process_folder(folder_path):
+def process_folder(folder_path, generate_report):
     """Process all files in a folder, handling multiple Excel sheets."""
     global tal_info_df
     tal_info_df = pd.DataFrame(columns=tal_info_columns)
@@ -113,39 +111,33 @@ def process_folder(folder_path):
                     for sheet_name in xls.sheet_names:
                         df = pd.read_excel(file_path, header=header_row, sheet_name=sheet_name)
                         current_sheet_name = sheet_name if len(xls.sheet_names) > 1 else None
-                        _process_dataframe(df, file_path, make_new_folder=True, sheet_name=current_sheet_name)
+                        _process_dataframe(df, file_path, True, generate_report, sheet_name=current_sheet_name)
                 except Exception:
                     xls = pd.ExcelFile(file_path)
                     for sheet_name in xls.sheet_names:
                         df = pd.read_excel(file_path, header=None, sheet_name=sheet_name)
                         current_sheet_name = sheet_name if len(xls.sheet_names) > 1 else None
-                        _process_dataframe(df, file_path, make_new_folder=True, sheet_name=current_sheet_name)
+                        _process_dataframe(df, file_path, True, generate_report, sheet_name=current_sheet_name)
             else: # It's a CSV
                 try:
                     df = pd.read_csv(file_path, header=header_row, encoding='utf-8-sig')
-                    _process_dataframe(df, file_path, make_new_folder=True)
+                    _process_dataframe(df, file_path, True, generate_report)
                 except Exception:
                     df = pd.read_csv(file_path, header=None, encoding='utf-8-sig')
-                    _process_dataframe(df, file_path, make_new_folder=True)
+                    _process_dataframe(df, file_path, True, generate_report)
                     
-    # **NEW:** Rename columns for the report
-    tal_info_df.rename(columns={
-        'file_name': 'File Name',
-        'type': 'Type',
-        'original_rows': 'Original Rows',
-        'cleaned_rows': 'Cleaned Rows'
-    }, inplace=True)
-                    
-    clean_folder_path = os.path.join(folder_path, 'clean_companies')
-    os.makedirs(clean_folder_path, exist_ok=True)
-    tal_info_path = os.path.join(clean_folder_path, 'tal_info.xlsx')
-    
-    tal_info_df.to_excel(tal_info_path, index=False)
-
-    # **NEW:** Apply the formatting
-    format_tal_info_sheet(tal_info_path)
-    
-    print(f"TAL info saved to {tal_info_path}")
+    # **NEW:** Only save and format the report if requested.
+    if generate_report:
+        tal_info_df.rename(columns={
+            'file_name': 'File Name', 'type': 'Type',
+            'original_rows': 'Original Rows', 'cleaned_rows': 'Cleaned Rows'
+        }, inplace=True)
+        clean_folder_path = os.path.join(folder_path, 'clean_companies')
+        os.makedirs(clean_folder_path, exist_ok=True)
+        tal_info_path = os.path.join(clean_folder_path, 'tal_info.xlsx')
+        tal_info_df.to_excel(tal_info_path, index=False)
+        format_tal_info_sheet(tal_info_path)
+        print(f"TAL info saved to {tal_info_path}")
 
 def append_tal_info(tal_info_df, file_name, col_type, original_rows, cleaned_rows):
     """Add a row to the TAL info DataFrame."""
